@@ -1,0 +1,43 @@
+{
+  "name": "x-face-detector",
+  "version": "1.0.0",
+  "description": "detecting faces with TensorFlow.js",
+  "module": "dist/XFaceDetector.js",
+  "scripts": {
+    "build": "NODE_ENV=production webpack --mode=production",
+    "postbuild": "sed -i.bak 's#text/javascript#module#' dist/index.html && rm dist/index.html.bak",
+    "lint": "eslint --ext .js . --ignore-path .eslintignore",
+    "start": "webpack-dev-server --mode=development",
+    "test": "echo \"no test specified\" && exit 0"
+  },
+  "files": [
+    "dist"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tensorflow/tfjs": "^1.5.2",
+    "@tensorflow/tfjs-backend-wasm": "^1.5.2-alpha1",
+    "lit-element": "^2.2.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.7.7",
+    "@babel/plugin-proposal-class-properties": "^7.7.4",
+    "@babel/plugin-proposal-decorators": "^7.7.4",
+    "@babel/plugin-proposal-object-rest-spread": "^7.7.7",
+    "@babel/plugin-syntax-dynamic-import": "^7.7.4",
+    "@babel/plugin-syntax-import-meta": "^7.7.4",
+    "@babel/preset-env": "^7.7.7",
+    "@purtuga/esm-webpack-plugin": "^1.2.1",
+    "babel-loader": "^8.0.6",
+    "clean-webpack-plugin": "^3.0.0",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-prettier": "^3.1.2",
+    "html-webpack-plugin": "^3.2.0",
+    "prettier": "^1.19.1",
+    "webpack": "^4.41.5",
+    "webpack-cli": "^3.3.10",
+    "webpack-dev-server": "^3.10.1"
+  }
+}

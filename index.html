@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+  <base href="/">
+  <title><%= htmlWebpackPlugin.options.title %></title>
+  <style>
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+    }
+
+    #grid-container {
+      align-items: center;
+      display: grid;
+      grid-template-areas: "top" "middle" "bottom";
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr auto;
+      height: 100%;
+      justify-items: center;
+    }
+
+    #top, #middle, #bottom {
+      width: 100%;
+    }
+
+    #top {
+      grid-area: top;
+    }
+
+    #middle {
+      height: 100%;
+      grid-area: middle;
+    }
+
+    #bottom {
+      grid-area: bottom;
+    }
+  </style>
+</head>
+<body>
+  <section id="grid-container">
+    <section id="top">
+      <h1>&lt;x-face-detector&gt;</h1>
+    </section>
+    <section id="middle">
+      <canvas id="canvas"></canvas>
+
+      <!--
+        <div style="display:none;">
+          <img id="img" src="https://example.com/image.jpg">
+        </div>
+      -->
+    </section>
+    <section id="bottom">
+      <button>click</button>
+      <x-face-detector key="<%= htmlWebpackPlugin.options.xFaceDetectorExampleOneKey %>">
+        it works!
+      </x-face-detector>
+    </section>
+  </section>
+    <!-- Import @tensorflow/tfjs or @tensorflow/tfjs-core -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+    <!-- Adds the WASM backend to the global backend registry -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
+
+    <!-- get the model -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+
+    <script>
+      async function main(image) {
+        // Load the model.
+        const model = await blazeface.load();
+
+        // Pass in an image or video to the model. The model returns an array of
+        // bounding boxes, probabilities, and landmarks, one for each detected face.
+        const returnTensors = false; // Pass in `true` to get tensors back, rather than values.
+        const predictions = await model.estimateFaces(image, returnTensors);
+        // const predictions = await model.estimateFaces(document.querySelector("img"), returnTensors);
+
+        if (predictions.length > 0) {
+          // console.log(predictions)
+
+          /*
+          `predictions` is an array of objects describing each detected face, for example:
+          [
+            {
+              topLeft: [232.28, 145.26],
+              bottomRight: [449.75, 308.36],
+              probability: [0.998],
+              landmarks: [
+                [295.13, 177.64], // right eye
+                [382.32, 175.56], // left eye
+                [341.18, 205.03], // nose
+                [345.12, 250.61], // mouth
+                [252.76, 211.37], // right ear
+                [431.20, 204.93] // left ear
+              ]
+            }
+          ]
+          */
+
+          ctx.fillStyle = 'green';
+
+          for (let i = 0; i < predictions.length; i++) {
+            const start = predictions[i].topLeft;
+            const end = predictions[i].bottomRight;
+            const size = [end[0] - start[0], end[1] - start[1]];
+
+            console.log('Found a face!', start[0], start[1], size[0], size[1]);
+
+            // Render a rectangle over each detected face.
+            ctx.fillRect(start[0], start[1], size[0], size[1]);
+          }
+        }
+      }
+    </script>
+    <script>
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      // const image = document.getElementById('img');
+
+      const ids = [1, 2, 3];
+      let imageIndex = 0;
+
+      const startDownload = (id) => {
+        console.log('downloading', id);
+
+        const image = new Image;
+        image.crossOrigin = 'Anonymous';
+        image.src = 'https://avatars3.githubusercontent.com/u/' + id;
+        image.addEventListener('load', e => {
+          let index = imageIndex++
+
+          if (index === ids.length - 1) {
+            imageIndex = 0
+          }
+
+          // set the canvas to the image width and height
+          canvas.width = image.width;
+          canvas.height = image.height;
+
+          ctx.drawImage(image, 0, 0, image.width, image.height);
+
+          tf.setBackend('wasm').then(() => {
+            main(image);
+          });
+        });
+
+        return image;
+      }
+
+      const image = startDownload(ids[imageIndex]);
+
+      document.querySelector('button').addEventListener('click', e => {
+        const id = ids[imageIndex];
+        console.log('clicked', id);
+
+        startDownload(id);
+      })
+    </script>
+  </section>
+</body>
+</html>
