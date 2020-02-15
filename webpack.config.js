@@ -46,6 +46,6 @@ module.exports = {
 if (process.env.NODE_ENV === 'production') {
   module.exports.plugins.push(new EsmWebpackPlugin())
 
-  module.exports.output.library = ' X_FACE_DETECTOR'
+  module.exports.output.library = 'X_FACE_DETECTOR'
   module.exports.output.libraryTarget = 'var'
 }

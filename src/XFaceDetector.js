@@ -1,18 +1,19 @@
 import { LitElement, css, html, property } from 'lit-element'
 import { defineCustomElement } from './utilities'
 import { render } from 'lit-html'
+import * as events from './events'
 
 // Import @tensorflow/tfjs or @tensorflow/tfjs-core
-import * as tf from '@tensorflow/tfjs';
-// import * as tf from '@tensorflow/tfjs-core';
+import * as tf from '@tensorflow/tfjs'
+// import * as tf from '@tensorflow/tfjs-core'
 
 // Adds the WASM backend to the global backend registry.
-import '@tensorflow/tfjs-backend-wasm';
+import '@tensorflow/tfjs-backend-wasm'
 
 // Import model
-import * as blazeface from '@tensorflow-models/blazeface';
+import * as blazeface from '@tensorflow-models/blazeface'
 
-import { setWasmPath } from '@tensorflow/tfjs-backend-wasm';
+import { setWasmPath } from '@tensorflow/tfjs-backend-wasm'
 
 export class XFaceDetector extends LitElement {
   @property({ type: String, reflect: true })
@@ -28,6 +29,10 @@ export class XFaceDetector extends LitElement {
 
   static get styles() {
     return css`
+      :host {
+        text-align: var(--x-face-detector-text-align, center);
+      }
+
       a {
         color: var(--x-face-detector-link-color, blue);
         text-decoration: var(--x-face-detector-link-text-decoration, underline);
@@ -38,20 +43,83 @@ export class XFaceDetector extends LitElement {
         text-decoration: var(--x-face-detector-link-hover-text-decoration, underline);
       }
 
-      #controls,
-      #link {
-        margin: 1rem 0;
-        text-align: center;
+      button {
+        background-color: var(--x-face-detector-button-background-color, rgb(239, 239, 239));
+        border: var(--x-face-detector-button-border, 2px outset rgb(118, 118, 118));
+        color: var(--x-face-detector-button-color, initial);
+        font: var(--x-face-detector-button-font, 400 13.3333px Arial;);
+        margin: var(--x-face-detector-button-margin, 0);
+        padding: var(--x-face-detector-button-padding, 0.5rem 1rem);
       }
 
-      #canvas {
-        display: block;
-        margin: auto;
+      .canvas-flex-container {
+        flex: auto;
+      }
+
+      #canvas-container {
+        display: flex;
+      }
+
+      #controls, #link {
+        margin: 1rem 0;
+      }
+
+      #loading-container {
+        position: relative;
+      }
+
+      #loading {
+        pointer-events: none;
+        position: absolute;
+        width: 100%;
       }
     `
   }
 
-  async main(image) {
+  decrementId() {
+    let index = this.userId--
+
+    if (index === 0) {
+      // wrap around to this.maxId
+      this.userId = this.maxId
+    }
+
+    return this.userId
+  }
+
+  incrementId() {
+    let index = this.userId++
+
+    if (index === this.maxId) {
+      // wrap around to this.minId
+      this.userId = this.minId
+    }
+
+    return this.userId
+  }
+
+  handlePlay() {
+    this.interval = setInterval(() => {
+      const id = this.incrementId()
+      this.handlePrediction(id)
+    }, 1000)
+  }
+
+  handleStop() {
+    clearInterval(this.interval)
+  }
+
+  handleNext() {
+    const id = this.incrementId()
+    this.handlePrediction(id)
+  }
+
+  handlePrevious() {
+    const id = this.decrementId()
+    this.handlePrediction(id)
+  }
+
+  async drawPrediction(image) {
     // Pass in an image or video to the model. The model returns an array of
     // bounding boxes, probabilities, and landmarks, one for each detected face.
     const returnTensors = false // Pass in `true` to get tensors back, rather than values.
@@ -85,18 +153,30 @@ export class XFaceDetector extends LitElement {
         const end = predictions[i].bottomRight
         const size = [end[0] - start[0], end[1] - start[1]]
 
-        console.log('Found a face!', start[0], start[1], size[0], size[1])
+        const rectangle = [start[0], start[1], size[0], size[1]]
+
+        console.log('Face detected', rectangle)
+        this.dispatchEvent(events.XFaceDetectorFaceDetected(rectangle))
 
         // Render a rectangle over each detected face.
-        this.ctx.strokeRect(start[0], start[1], size[0], size[1])
+        this.ctx.strokeRect(...rectangle)
       }
+
+      return
     }
+
+    console.log('No Face detected')
+    this.dispatchEvent(events.XFaceDetectorNoFaceDetected())
   }
 
   getImage(id) {
     return new Promise((res, rej) => {
       const image = new Image()
       image.crossOrigin = 'Anonymous'
+
+      this.dispatchEvent(events.XFaceDetectorImageLoading())
+      this.shadowRoot.querySelector('#loading').style.display = 'block'
+
       image.src = this.apiHost + id
       image.addEventListener('load', e => {
         res(image)
@@ -119,36 +199,16 @@ export class XFaceDetector extends LitElement {
     })
   }
 
-  startDownload(id) {
+  handlePrediction(id) {
     return new Promise((res, rej) => {
       this.getImage(id).then(image => {
+        this.dispatchEvent(events.XFaceDetectorImageLoaded())
+        this.shadowRoot.querySelector('#loading').style.display = 'none'
         this.setupCanvas(image).then(ctx => {
-          this.main(image)
+          this.drawPrediction(image)
         })
       })
     })
-  }
-
-  decrementId() {
-    let index = this.userId--
-
-    if (index === 0) {
-      // wrap around to this.maxId
-      this.userId = this.maxId
-    }
-
-    return this.userId
-  }
-
-  incrementId() {
-    let index = this.userId++
-
-    if (index === this.maxId) {
-      // wrap around to this.minId
-      this.userId = this.minId
-    }
-
-    return this.userId
   }
 
   firstUpdated() {
@@ -159,36 +219,15 @@ export class XFaceDetector extends LitElement {
     const canvas = this.shadowRoot.getElementById('canvas')
     this.ctx = canvas.getContext('2d')
 
-    setWasmPath(this.wasmPath);
+    setWasmPath(this.wasmPath)
     tf.setBackend('wasm').then(() => {
       return new Promise((res, rej) => {
         // Load the model.
         res(blazeface.load())
       }).then(blazeface => {
         this.model = blazeface
-        this.startDownload(this.userId)
+        this.handlePrediction(this.userId)
       })
-    })
-
-    this.shadowRoot.querySelector('button#stop').addEventListener('click', e => {
-      clearInterval(this.interval)
-    })
-
-    this.shadowRoot.querySelector('button#play').addEventListener('click', e => {
-      this.interval = setInterval(() => {
-        const id = this.incrementId()
-        this.startDownload(id)
-      }, 1000)
-    })
-
-    this.shadowRoot.querySelector('button#next').addEventListener('click', e => {
-      const id = this.incrementId()
-      this.startDownload(id)
-    })
-
-    this.shadowRoot.querySelector('button#previous').addEventListener('click', e => {
-      const id = this.decrementId()
-      this.startDownload(id)
     })
   }
 
@@ -196,13 +235,18 @@ export class XFaceDetector extends LitElement {
     return this.apiHost && this.wasmPath ? html`
       <div id="link"><a href="${this.apiHost}${this.userId}">${this.apiHost}${this.userId}</a></div>
       <div id="controls">
-        <button id="play">play</button>
-        <button id="stop">stop</button>
-        <button id="previous">previous</button>
-        <button id="next">next</button>
+        <button id="play" @click=${this.handlePlay}>play</button>
+        <button id="previous" @click=${this.handlePrevious}>previous</button>
+        <button id="stop" @click=${this.handleStop}>stop</button>
+        <button id="next" @click=${this.handleNext}>next</button>
       </div>
-      <div>
-        <canvas id="canvas"></canvas>
+      <div id="canvas-container">
+        <div class="canvas-flex-container"></div>
+        <div id="loading-container">
+          <div id="loading"><slot></slot></div>
+          <canvas id="canvas"></canvas>
+        </div>
+        <div class="canvas-flex-container"></div>
       </div>
     ` : ''
   }

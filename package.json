@@ -1,7 +1,8 @@
 {
   "name": "x-face-detector",
   "version": "1.0.0",
-  "description": "detecting faces with TensorFlow.js",
+  "description": "Detecting faces with TensorFlow.js.",
+  "main": "dist/XFaceDetector.js",
   "module": "dist/XFaceDetector.js",
   "scripts": {
     "build": "webpack --mode=production",
