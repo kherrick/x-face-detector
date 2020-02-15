@@ -17,12 +17,14 @@ module.exports = {
   plugins: [
     new CleanWebpackPlugin(),
     new HtmlWebpackPlugin({
-      xFaceDetectorExampleOneKey: config.xFaceDetectorExampleOne.key,
+      apiHost: config.apiHost,
+      wasmPath: config.wasmPath,
       title: 'XFaceDetector',
       template: 'index.html'
     }),
     new DefinePlugin({
-      'X_FACE_DETECTOR_EXAMPLE_ONE_KEY': JSON.stringify(config.xFaceDetectorExampleOne.key),
+      'API_HOST': JSON.stringify(config.apiHost),
+      'WASM_PATH': JSON.stringify(config.wasmPath),
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV)
     })
   ],

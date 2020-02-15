@@ -4,7 +4,7 @@
   "description": "detecting faces with TensorFlow.js",
   "module": "dist/XFaceDetector.js",
   "scripts": {
-    "build": "NODE_ENV=production webpack --mode=production",
+    "build": "webpack --mode=production",
     "postbuild": "sed -i.bak 's#text/javascript#module#' dist/index.html && rm dist/index.html.bak",
     "lint": "eslint --ext .js . --ignore-path .eslintignore",
     "start": "webpack-dev-server --mode=development",
@@ -16,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@tensorflow-models/blazeface": "0.0.4",
     "@tensorflow/tfjs": "^1.5.2",
     "@tensorflow/tfjs-backend-wasm": "^1.5.2-alpha1",
     "lit-element": "^2.2.1"
