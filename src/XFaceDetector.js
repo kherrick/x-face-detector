@@ -61,7 +61,7 @@ export class XFaceDetector extends LitElement {
       }
 
       #controls, #link {
-        margin: 1rem 0;
+        margin: 0 0 1rem 0;
       }
 
       #loading-container {
@@ -74,6 +74,12 @@ export class XFaceDetector extends LitElement {
         width: 100%;
       }
     `
+  }
+
+  constructor() {
+    super()
+
+    this.readyToPredict = false
   }
 
   decrementId() {
@@ -101,7 +107,6 @@ export class XFaceDetector extends LitElement {
   handlePlay() {
     this.interval = setInterval(() => {
       const id = this.incrementId()
-      this.handlePrediction(id)
     }, 1000)
   }
 
@@ -111,12 +116,18 @@ export class XFaceDetector extends LitElement {
 
   handleNext() {
     const id = this.incrementId()
-    this.handlePrediction(id)
   }
 
   handlePrevious() {
     const id = this.decrementId()
-    this.handlePrediction(id)
+  }
+
+  updated(changedProperties) {
+    changedProperties.forEach((oldVal, propName) => {
+      if (this.readyToPredict && propName === 'userId') {
+        this.handlePrediction(this.userId)
+      }
+    })
   }
 
   async drawPrediction(image) {
@@ -226,6 +237,8 @@ export class XFaceDetector extends LitElement {
         res(blazeface.load())
       }).then(blazeface => {
         this.model = blazeface
+
+        this.readyToPredict = true
         this.handlePrediction(this.userId)
       })
     })
@@ -233,13 +246,13 @@ export class XFaceDetector extends LitElement {
 
   render() {
     return this.apiHost && this.wasmPath ? html`
-      <div id="link"><a href="${this.apiHost}${this.userId}">${this.apiHost}${this.userId}</a></div>
       <div id="controls">
         <button id="play" @click=${this.handlePlay}>play</button>
         <button id="previous" @click=${this.handlePrevious}>previous</button>
         <button id="stop" @click=${this.handleStop}>stop</button>
         <button id="next" @click=${this.handleNext}>next</button>
       </div>
+      <div id="link"><a href="${this.apiHost}${this.userId}">${this.apiHost}${this.userId}</a></div>
       <div id="canvas-container">
         <div class="canvas-flex-container"></div>
         <div id="loading-container">
