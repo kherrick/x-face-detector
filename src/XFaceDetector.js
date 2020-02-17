@@ -15,6 +15,8 @@ import * as blazeface from '@tensorflow-models/blazeface'
 
 import { setWasmPath } from '@tensorflow/tfjs-backend-wasm'
 
+export * from './events'
+
 export class XFaceDetector extends LitElement {
   @property({ type: String, reflect: true })
   apiHost = API_HOST
@@ -24,6 +26,10 @@ export class XFaceDetector extends LitElement {
   maxId = 9999999
   @property({ type: Number, reflect: true })
   userId = 0
+  @property({ type: String, reflect: true })
+  strokeStyle = 'yellow'
+  @property({ type: Number, reflect: true })
+  lineWidth = 10
   @property({ type: String, reflect: false })
   wasmPath = WASM_PATH
 
@@ -160,8 +166,8 @@ export class XFaceDetector extends LitElement {
       ]
       */
 
-      this.ctx.strokeStyle = 'yellow'
-      this.ctx.lineWidth = 10
+      this.ctx.strokeStyle = this.strokeStyle
+      this.ctx.lineWidth = this.lineWidth
 
       for (let i = 0; i < predictions.length; i++) {
         const start = predictions[i].topLeft
@@ -170,7 +176,7 @@ export class XFaceDetector extends LitElement {
 
         const rectangle = [start[0], start[1], size[0], size[1]]
 
-        console.log('Face detected', rectangle)
+        process.env.NODE_ENV !== 'production' && console.log('Face detected', rectangle)
         this.dispatchEvent(events.XFaceDetectorFaceDetected(rectangle))
 
         // Render a rectangle over each detected face.
@@ -180,7 +186,7 @@ export class XFaceDetector extends LitElement {
       return
     }
 
-    console.log('No Face detected')
+    process.env.NODE_ENV !== 'production' && console.log('No Face detected')
     this.dispatchEvent(events.XFaceDetectorNoFaceDetected())
   }
 
@@ -248,6 +254,34 @@ export class XFaceDetector extends LitElement {
     })
   }
 
+  handleDrop(event) {
+    event.preventDefault()
+
+    for (var i = 0; i < event.dataTransfer.files.length; i++) {
+      let droppedFile = event.dataTransfer.files[i]
+
+      createImageBitmap(droppedFile).then(imageBitmap => {
+        this.setupCanvas(imageBitmap).then(ctx => {
+          const imageFromCanvas = new Image()
+
+          imageFromCanvas.addEventListener('load', e => {
+            this.drawPrediction(imageFromCanvas)
+          })
+
+          imageFromCanvas.src = this.shadowRoot.querySelector('canvas').toDataURL()
+        })
+      }).catch(error => {
+        this.dispatchEvent(events.XFaceDetectorImageLoadingFailure(error))
+
+        process.env.NODE_ENV !== 'production' && console.error(error)
+      })
+    }
+  }
+
+  handleDragOver(event) {
+    event.preventDefault()
+  }
+
   render() {
     return this.apiHost && this.wasmPath ? html`
       <div id="controls">
@@ -257,7 +291,7 @@ export class XFaceDetector extends LitElement {
         <button id="next" @click=${this.handleNext}>next</button>
       </div>
       <div id="link"><a href="${this.apiHost}${this.userId}">${this.apiHost}${this.userId}</a></div>
-      <div id="canvas-container">
+      <div id="canvas-container" @drop="${this.handleDrop}" @dragover="${this.handleDragOver}">
         <div class="canvas-flex-container"></div>
         <div id="loading-container">
           <div id="loading"><slot></slot></div>

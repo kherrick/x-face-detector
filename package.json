@@ -1,11 +1,11 @@
 {
   "name": "x-face-detector",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Detecting faces with TensorFlow.js.",
   "main": "dist/XFaceDetector.js",
   "module": "dist/XFaceDetector.js",
   "scripts": {
-    "build": "webpack --mode=production",
+    "build": "NODE_ENV=production webpack --mode=production",
     "postbuild": "sed -i.bak 's#text/javascript#module#' dist/index.html && rm dist/index.html.bak",
     "lint": "eslint --ext .js . --ignore-path .eslintignore",
     "start": "webpack-dev-server --mode=development",
