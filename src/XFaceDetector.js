@@ -108,10 +108,14 @@ export class XFaceDetector extends LitElement {
     this.interval = setInterval(() => {
       const id = this.incrementId()
     }, 1000)
+
+    this.shadowRoot.querySelector('#play').disabled = true
   }
 
   handleStop() {
     clearInterval(this.interval)
+
+    this.shadowRoot.querySelector('#play').disabled = false
   }
 
   handleNext() {
