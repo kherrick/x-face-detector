@@ -11,4 +11,4 @@
 /package-lock.json
 
 # build
-/dist
+#/dist
