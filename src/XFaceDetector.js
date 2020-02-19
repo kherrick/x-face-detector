@@ -19,13 +19,7 @@ export * from './events'
 
 export class XFaceDetector extends LitElement {
   @property({ type: String, reflect: true })
-  apiHost = API_HOST
-  @property({ type: Number, reflect: true })
-  minId = 0
-  @property({ type: Number, reflect: true })
-  maxId = 9999999
-  @property({ type: Number, reflect: true })
-  userId = 0
+  imgUrl = IMG_URL
   @property({ type: String, reflect: true })
   strokeStyle = 'yellow'
   @property({ type: Number, reflect: true })
@@ -36,26 +30,7 @@ export class XFaceDetector extends LitElement {
   static get styles() {
     return css`
       :host {
-        text-align: var(--x-face-detector-text-align, center);
-      }
-
-      a {
-        color: var(--x-face-detector-link-color, blue);
-        text-decoration: var(--x-face-detector-link-text-decoration, underline);
-      }
-
-      a:hover {
-        color: var(--x-face-detector-link-hover-color, darkblue);
-        text-decoration: var(--x-face-detector-link-hover-text-decoration, underline);
-      }
-
-      button {
-        background-color: var(--x-face-detector-button-background-color, rgb(239, 239, 239));
-        border: var(--x-face-detector-button-border, 2px outset rgb(118, 118, 118));
-        color: var(--x-face-detector-button-color, initial);
-        font: var(--x-face-detector-button-font, 400 13.3333px Arial;);
-        margin: var(--x-face-detector-button-margin, 0);
-        padding: var(--x-face-detector-button-padding, 0.5rem 1rem);
+        display: block;
       }
 
       .canvas-flex-container {
@@ -64,10 +39,6 @@ export class XFaceDetector extends LitElement {
 
       #canvas-container {
         display: flex;
-      }
-
-      #controls, #link {
-        margin: 0 0 1rem 0;
       }
 
       #loading-container {
@@ -88,54 +59,10 @@ export class XFaceDetector extends LitElement {
     this.readyToPredict = false
   }
 
-  decrementId() {
-    let index = this.userId--
-
-    if (index === 0) {
-      // wrap around to this.maxId
-      this.userId = this.maxId
-    }
-
-    return this.userId
-  }
-
-  incrementId() {
-    let index = this.userId++
-
-    if (index === this.maxId) {
-      // wrap around to this.minId
-      this.userId = this.minId
-    }
-
-    return this.userId
-  }
-
-  handlePlay() {
-    this.interval = setInterval(() => {
-      const id = this.incrementId()
-    }, 1000)
-
-    this.shadowRoot.querySelector('#play').disabled = true
-  }
-
-  handleStop() {
-    clearInterval(this.interval)
-
-    this.shadowRoot.querySelector('#play').disabled = false
-  }
-
-  handleNext() {
-    const id = this.incrementId()
-  }
-
-  handlePrevious() {
-    const id = this.decrementId()
-  }
-
   updated(changedProperties) {
     changedProperties.forEach((oldVal, propName) => {
-      if (this.readyToPredict && propName === 'userId') {
-        this.handlePrediction(this.userId)
+      if (this.readyToPredict && propName === 'imgUrl') {
+        this.handlePrediction(this.imgUrl)
       }
     })
   }
@@ -160,7 +87,7 @@ export class XFaceDetector extends LitElement {
             [341.18, 205.03], // nose
             [345.12, 250.61], // mouth
             [252.76, 211.37], // right ear
-            [431.20, 204.93] // left ear
+            [431.20, 204.93]  // left ear
           ]
         }
       ]
@@ -190,7 +117,7 @@ export class XFaceDetector extends LitElement {
     this.dispatchEvent(events.XFaceDetectorNoFaceDetected())
   }
 
-  getImage(id) {
+  getImage(url) {
     return new Promise((res, rej) => {
       const image = new Image()
       image.crossOrigin = 'Anonymous'
@@ -198,7 +125,7 @@ export class XFaceDetector extends LitElement {
       this.dispatchEvent(events.XFaceDetectorImageLoading())
       this.shadowRoot.querySelector('#loading').style.display = 'block'
 
-      image.src = this.apiHost + id
+      image.src = url
       image.addEventListener('load', e => {
         res(image)
       })
@@ -220,9 +147,9 @@ export class XFaceDetector extends LitElement {
     })
   }
 
-  handlePrediction(id) {
+  handlePrediction(url) {
     return new Promise((res, rej) => {
-      this.getImage(id).then(image => {
+      this.getImage(url).then(image => {
         this.dispatchEvent(events.XFaceDetectorImageLoaded())
         this.shadowRoot.querySelector('#loading').style.display = 'none'
         this.setupCanvas(image).then(ctx => {
@@ -233,7 +160,7 @@ export class XFaceDetector extends LitElement {
   }
 
   firstUpdated() {
-    if (!this.apiHost && !this.wasmPath) {
+    if (!this.wasmPath) {
       return
     }
 
@@ -249,7 +176,7 @@ export class XFaceDetector extends LitElement {
         this.model = blazeface
 
         this.readyToPredict = true
-        this.handlePrediction(this.userId)
+        this.handlePrediction(this.imgUrl)
       })
     })
   }
@@ -283,14 +210,7 @@ export class XFaceDetector extends LitElement {
   }
 
   render() {
-    return this.apiHost && this.wasmPath ? html`
-      <div id="controls">
-        <button id="play" @click=${this.handlePlay}>play</button>
-        <button id="previous" @click=${this.handlePrevious}>previous</button>
-        <button id="stop" @click=${this.handleStop}>stop</button>
-        <button id="next" @click=${this.handleNext}>next</button>
-      </div>
-      <div id="link"><a href="${this.apiHost}${this.userId}">${this.apiHost}${this.userId}</a></div>
+    return this.wasmPath ? html`
       <div id="canvas-container" @drop="${this.handleDrop}" @dragover="${this.handleDragOver}">
         <div class="canvas-flex-container"></div>
         <div id="loading-container">

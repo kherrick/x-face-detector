@@ -17,13 +17,13 @@ module.exports = {
   plugins: [
     new CleanWebpackPlugin(),
     new HtmlWebpackPlugin({
-      apiHost: config.apiHost,
+      imgUrl: config.imgUrl,
       wasmPath: config.wasmPath,
       title: 'XFaceDetector',
       template: 'index.html'
     }),
     new DefinePlugin({
-      'API_HOST': JSON.stringify(config.apiHost),
+      'IMG_URL': JSON.stringify(config.imgUrl),
       'WASM_PATH': JSON.stringify(config.wasmPath),
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV)
     })
