@@ -26,6 +26,16 @@ export class XFaceDetector extends LitElement {
   lineWidth = 10
   @property({ type: String, reflect: false })
   wasmPath = WASM_PATH
+  @property({ type: Boolean, reflect: false })
+  isStreaming = false
+  @property({ type: Boolean, reflect: false })
+  isReadyToPredict = false
+  @property({ type: Boolean, reflect: false })
+  canPredictVideo = false
+  @property({ type: Number, reflect: false })
+  width = 640
+  @property({ type: Number, reflect: false })
+  height = 480
 
   static get styles() {
     return css`
@@ -50,16 +60,18 @@ export class XFaceDetector extends LitElement {
         position: absolute;
         width: 100%;
       }
+
+      #canvas {
+        background-color: var(--x-face-detector-canvas-background-color, transparent)
+      }
+
+      #video {
+        display: none;
+      }
     `
   }
 
-  constructor() {
-    super()
-
-    this.readyToPredict = false
-  }
-
-  async _drawPrediction(image) {
+  async _drawPrediction(ctx, image) {
     // Pass in an image or video to the model. The model returns an array of
     // bounding boxes, probabilities, and landmarks, one for each detected face.
     const returnTensors = false // Pass in `true` to get tensors back, rather than values.
@@ -85,8 +97,8 @@ export class XFaceDetector extends LitElement {
       ]
       */
 
-      this.ctx.strokeStyle = this.strokeStyle
-      this.ctx.lineWidth = this.lineWidth
+      ctx.strokeStyle = this.strokeStyle
+      ctx.lineWidth = this.lineWidth
 
       for (let i = 0; i < predictions.length; i++) {
         const start = predictions[i].topLeft
@@ -99,14 +111,16 @@ export class XFaceDetector extends LitElement {
         this.dispatchEvent(events.XFaceDetectorFaceDetected(rectangle))
 
         // Render a rectangle over each detected face.
-        this.ctx.strokeRect(...rectangle)
+        await ctx.strokeRect(...rectangle)
       }
 
-      return
+      return [ ctx, image ]
     }
 
     process.env.NODE_ENV !== 'production' && console.log('No Face detected')
     this.dispatchEvent(events.XFaceDetectorNoFaceDetected())
+
+    return [ ctx, image ]
   }
 
   _getImage(url) {
@@ -115,7 +129,7 @@ export class XFaceDetector extends LitElement {
       image.crossOrigin = 'Anonymous'
 
       this.dispatchEvent(events.XFaceDetectorImageLoading())
-      this.shadowRoot.querySelector('#loading').style.display = 'block'
+      this.shadowRoot.getElementById('loading').style.display = 'block'
 
       image.src = url
 
@@ -126,6 +140,44 @@ export class XFaceDetector extends LitElement {
       image.addEventListener('load', e => {
         res(image)
       })
+    })
+  }
+
+  _getUserMediaPromise() {
+    return new Promise((res, rej) => {
+      const canvas = this.shadowRoot.getElementById('canvas')
+      const video = this.shadowRoot.getElementById('video')
+
+      navigator.mediaDevices.getUserMedia({video: true, audio: false})
+        .then(stream => {
+          video.srcObject = stream
+          video.play()
+        })
+        .catch(error => {
+          this.dispatchEvent(events.XFaceDetectorVideoLoadingFailure(error))
+
+          process.env.NODE_ENV !== 'production' && console.error(error)
+        })
+
+      video.addEventListener('canplay', (ev) => {
+        if (!this.isStreaming) {
+          this.height = video.videoHeight / (video.videoWidth/this.width)
+
+          // Firefox currently has a bug where the height can't be read from
+          // the video, so we will make assumptions if this happens.
+
+          // if (isNaN(this.height)) {
+          //   this.height = this.width / (4/3)
+          // }
+
+          video.setAttribute('width', this.width)
+          video.setAttribute('height', this.height)
+          canvas.setAttribute('width', this.width)
+          canvas.setAttribute('height', this.height)
+
+          res(true)
+        }
+      }, false)
     })
   }
 
@@ -160,18 +212,18 @@ export class XFaceDetector extends LitElement {
 
     process.env.NODE_ENV !== 'production' && console.log('drop', event)
 
-    for (var i = 0; i < event.dataTransfer.files.length; i++) {
+    for (let i = 0; i < event.dataTransfer.files.length; i++) {
       let droppedFile = event.dataTransfer.files[i]
 
       createImageBitmap(droppedFile).then(imageBitmap => {
-        this._setupCanvas(imageBitmap).then(ctx => {
+        this._setupCanvas(this.shadowRoot.getElementById('canvas'), imageBitmap).then(ctx => {
           const imageFromCanvas = new Image()
 
           imageFromCanvas.addEventListener('load', e => {
-            this._drawPrediction(imageFromCanvas)
+            this._drawPrediction(ctx, imageFromCanvas)
           })
 
-          imageFromCanvas.src = this.shadowRoot.querySelector('canvas').toDataURL()
+          imageFromCanvas.src = this.shadowRoot.getElementById('canvas').toDataURL()
         })
       }).catch(error => {
         this.dispatchEvent(events.XFaceDetectorImageLoadingFailure(error))
@@ -181,21 +233,45 @@ export class XFaceDetector extends LitElement {
     }
   }
 
-  _handlePrediction(url) {
+  _handlePrediction(canvas, url) {
     return new Promise((res, rej) => {
       this._getImage(url).then(image => {
         this.dispatchEvent(events.XFaceDetectorImageLoaded())
-        this.shadowRoot.querySelector('#loading').style.display = 'none'
-        this._setupCanvas(image).then(ctx => {
-          this._drawPrediction(image)
+        this.shadowRoot.getElementById('loading').style.display = 'none'
+        this._setupCanvas(canvas, image).then(ctx => {
+          this._drawPrediction(ctx, image)
         })
       })
     })
   }
 
-  _setupCanvas(image) {
+  _predictVideo() {
+    const canvas = this.shadowRoot.getElementById('canvas')
+    const video = this.shadowRoot.getElementById('video')
+
+    this.canPredictVideo = true
+
+    const taskResolution = period => {
+      return new Promise((resolve, reject) => {
+        const interval = setInterval(() => {
+          this._setupCanvas(canvas, video).then(ctx => {
+            this._drawPrediction(ctx, video).then(val => {
+              if (!this.canPredictVideo) {
+                resolve(interval)
+              }
+            })
+          })
+        }, period)
+      })
+    }
+
+    return taskResolution(0).then(interval => {
+      clearInterval(interval)
+    })
+  }
+
+  _setupCanvas(canvas, image) {
     return new Promise((res, rej) => {
-      const canvas = this.shadowRoot.getElementById('canvas')
       const ctx = canvas.getContext('2d')
 
       // set the canvas to the image width and height
@@ -208,13 +284,85 @@ export class XFaceDetector extends LitElement {
     })
   }
 
+  clearCanvas() {
+    const canvas = this.shadowRoot.getElementById('canvas')
+    const ctx = canvas.getContext('2d')
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  }
+
+  fillCanvas(color = '#000000') {
+    const canvas = this.shadowRoot.getElementById('canvas')
+    const ctx = canvas.getContext('2d')
+
+    ctx.fillStyle = color
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+  }
+
+  startPredictions() {
+    this._predictVideo()
+    this.toggleVideoCanvasDisplay(false)
+  }
+
+  stopPredictions() {
+    this.canPredictVideo = false
+    this.toggleVideoCanvasDisplay(true)
+  }
+
+  startVideo(ev) {
+    if (ev) {
+      ev.preventDefault()
+    }
+
+    if (this.isStreaming) {
+      return new Promise((res, rej) => {
+        res(true)
+      })
+    }
+
+    return this._getUserMediaPromise().then(isStreaming => {
+      this.toggleVideoCanvasDisplay(isStreaming)
+      this.isStreaming = isStreaming
+
+      return isStreaming
+    })
+  }
+
+  stopVideo(ev) {
+    if (ev) {
+      ev.preventDefault()
+    }
+
+    if (!this.isStreaming) {
+      return new Promise((res, rej) => {
+        res(false)
+      })
+    }
+
+    return new Promise((res, rej) => {
+      this.stopPredictions()
+
+      const video = this.shadowRoot.getElementById('video')
+      const stream = video.srcObject
+
+      stream.getTracks().forEach(track => {
+        track.stop()
+      })
+
+      this.isStreaming = false
+      res(false)
+    })
+  }
+
+  toggleVideoCanvasDisplay(flag) {
+    this.shadowRoot.getElementById('video').style.display = flag ? 'block' : 'none'
+    this.shadowRoot.getElementById('canvas').style.display = flag ? 'none' : 'block'
+  }
+
   firstUpdated() {
     if (!this.wasmPath) {
       return
     }
-
-    const canvas = this.shadowRoot.getElementById('canvas')
-    this.ctx = canvas.getContext('2d')
 
     setWasmPath(this.wasmPath)
     tf.setBackend('wasm').then(() => {
@@ -224,16 +372,16 @@ export class XFaceDetector extends LitElement {
       }).then(blazeface => {
         this.model = blazeface
 
-        this.readyToPredict = true
-        this._handlePrediction(this.imgUrl)
+        this.isReadyToPredict = true
+        this._handlePrediction(this.shadowRoot.getElementById('canvas'), this.imgUrl)
       })
     })
   }
 
   updated(changedProperties) {
     changedProperties.forEach((oldVal, propName) => {
-      if (this.readyToPredict && propName === 'imgUrl') {
-        this._handlePrediction(this.imgUrl)
+      if (this.isReadyToPredict && propName === 'imgUrl') {
+        this._handlePrediction(this.shadowRoot.getElementById('canvas'), this.imgUrl)
       }
     })
   }
@@ -250,6 +398,7 @@ export class XFaceDetector extends LitElement {
         <div id="loading-container">
           <div id="loading"><slot></slot></div>
           <canvas id="canvas"></canvas>
+          <video id="video">Video stream not available.</video>
         </div>
         <div class="canvas-flex-container"></div>
       </div>
