@@ -59,15 +59,7 @@ export class XFaceDetector extends LitElement {
     this.readyToPredict = false
   }
 
-  updated(changedProperties) {
-    changedProperties.forEach((oldVal, propName) => {
-      if (this.readyToPredict && propName === 'imgUrl') {
-        this.handlePrediction(this.imgUrl)
-      }
-    })
-  }
-
-  async drawPrediction(image) {
+  async _drawPrediction(image) {
     // Pass in an image or video to the model. The model returns an array of
     // bounding boxes, probabilities, and landmarks, one for each detected face.
     const returnTensors = false // Pass in `true` to get tensors back, rather than values.
@@ -117,7 +109,7 @@ export class XFaceDetector extends LitElement {
     this.dispatchEvent(events.XFaceDetectorNoFaceDetected())
   }
 
-  getImage(url) {
+  _getImage(url) {
     return new Promise((res, rej) => {
       const image = new Image()
       image.crossOrigin = 'Anonymous'
@@ -132,7 +124,71 @@ export class XFaceDetector extends LitElement {
     })
   }
 
-  setupCanvas(image) {
+  _handleDragEnter(event) {
+    event.preventDefault()
+
+    this.dispatchEvent(events.XFaceDetectorImageDragEnter(event))
+
+    process.env.NODE_ENV !== 'production' && console.log('dragenter', event)
+  }
+
+  _handleDragOver(event) {
+    event.preventDefault()
+
+    this.dispatchEvent(events.XFaceDetectorImageDragOver(event))
+
+    process.env.NODE_ENV !== 'production' && console.log('dragover', event)
+  }
+
+  _handleDragLeave(event) {
+    event.preventDefault()
+
+    this.dispatchEvent(events.XFaceDetectorImageDragLeave(event))
+
+    process.env.NODE_ENV !== 'production' && console.log('dragleave', event)
+  }
+
+  _handleDrop(event) {
+    event.preventDefault()
+
+    this.dispatchEvent(events.XFaceDetectorImageDrop(event))
+
+    process.env.NODE_ENV !== 'production' && console.log('drop', event)
+
+    for (var i = 0; i < event.dataTransfer.files.length; i++) {
+      let droppedFile = event.dataTransfer.files[i]
+
+      createImageBitmap(droppedFile).then(imageBitmap => {
+        this._setupCanvas(imageBitmap).then(ctx => {
+          const imageFromCanvas = new Image()
+
+          imageFromCanvas.addEventListener('load', e => {
+            this._drawPrediction(imageFromCanvas)
+          })
+
+          imageFromCanvas.src = this.shadowRoot.querySelector('canvas').toDataURL()
+        })
+      }).catch(error => {
+        this.dispatchEvent(events.XFaceDetectorImageLoadingFailure(error))
+
+        process.env.NODE_ENV !== 'production' && console.error(error)
+      })
+    }
+  }
+
+  _handlePrediction(url) {
+    return new Promise((res, rej) => {
+      this._getImage(url).then(image => {
+        this.dispatchEvent(events.XFaceDetectorImageLoaded())
+        this.shadowRoot.querySelector('#loading').style.display = 'none'
+        this._setupCanvas(image).then(ctx => {
+          this._drawPrediction(image)
+        })
+      })
+    })
+  }
+
+  _setupCanvas(image) {
     return new Promise((res, rej) => {
       const canvas = this.shadowRoot.getElementById('canvas')
       const ctx = canvas.getContext('2d')
@@ -144,18 +200,6 @@ export class XFaceDetector extends LitElement {
       ctx.drawImage(image, 0, 0, image.width, image.height)
 
       res(ctx)
-    })
-  }
-
-  handlePrediction(url) {
-    return new Promise((res, rej) => {
-      this.getImage(url).then(image => {
-        this.dispatchEvent(events.XFaceDetectorImageLoaded())
-        this.shadowRoot.querySelector('#loading').style.display = 'none'
-        this.setupCanvas(image).then(ctx => {
-          this.drawPrediction(image)
-        })
-      })
     })
   }
 
@@ -176,42 +220,27 @@ export class XFaceDetector extends LitElement {
         this.model = blazeface
 
         this.readyToPredict = true
-        this.handlePrediction(this.imgUrl)
+        this._handlePrediction(this.imgUrl)
       })
     })
   }
 
-  handleDrop(event) {
-    event.preventDefault()
-
-    for (var i = 0; i < event.dataTransfer.files.length; i++) {
-      let droppedFile = event.dataTransfer.files[i]
-
-      createImageBitmap(droppedFile).then(imageBitmap => {
-        this.setupCanvas(imageBitmap).then(ctx => {
-          const imageFromCanvas = new Image()
-
-          imageFromCanvas.addEventListener('load', e => {
-            this.drawPrediction(imageFromCanvas)
-          })
-
-          imageFromCanvas.src = this.shadowRoot.querySelector('canvas').toDataURL()
-        })
-      }).catch(error => {
-        this.dispatchEvent(events.XFaceDetectorImageLoadingFailure(error))
-
-        process.env.NODE_ENV !== 'production' && console.error(error)
-      })
-    }
-  }
-
-  handleDragOver(event) {
-    event.preventDefault()
+  updated(changedProperties) {
+    changedProperties.forEach((oldVal, propName) => {
+      if (this.readyToPredict && propName === 'imgUrl') {
+        this._handlePrediction(this.imgUrl)
+      }
+    })
   }
 
   render() {
     return this.wasmPath ? html`
-      <div id="canvas-container" @drop="${this.handleDrop}" @dragover="${this.handleDragOver}">
+      <div id="canvas-container"
+        @drop="${this._handleDrop}"
+        @dragenter="${this._handleDragEnter}"
+        @dragover="${this._handleDragOver}"
+        @dragleave="${this._handleDragLeave}"
+      >
         <div class="canvas-flex-container"></div>
         <div id="loading-container">
           <div id="loading"><slot></slot></div>
