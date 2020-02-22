@@ -118,6 +118,11 @@ export class XFaceDetector extends LitElement {
       this.shadowRoot.querySelector('#loading').style.display = 'block'
 
       image.src = url
+
+      image.addEventListener('error', e => {
+        this.dispatchEvent(events.XFaceDetectorImageLoadingFailure(e))
+      })
+
       image.addEventListener('load', e => {
         res(image)
       })
