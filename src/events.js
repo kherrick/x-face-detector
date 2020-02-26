@@ -5,6 +5,8 @@ export const X_FACE_DETECTOR_IMAGE_DROP = 'x-face-detector-image-drop'
 export const X_FACE_DETECTOR_IMAGE_LOADING = 'x-face-detector-image-loading'
 export const X_FACE_DETECTOR_IMAGE_LOADING_FAILURE = 'x-face-detector-image-loading-failure'
 export const X_FACE_DETECTOR_IMAGE_LOADED = 'x-face-detector-image-loaded'
+export const X_FACE_DETECTOR_VIDEO_LOADING = 'x-face-detector-video-loading'
+export const X_FACE_DETECTOR_VIDEO_LOADED = 'x-face-detector-video-loaded'
 export const X_FACE_DETECTOR_VIDEO_LOADING_FAILURE = 'x-face-detector-video-loading-failure'
 export const X_FACE_DETECTOR_FACE_DETECTED = 'x-face-detector-face-detected'
 export const X_FACE_DETECTOR_NO_FACE_DETECTED = 'x-face-detector-no-face-detected'
@@ -53,6 +55,20 @@ export const XFaceDetectorImageLoadingFailure = val =>
 
 export const XFaceDetectorImageLoaded = val =>
   new CustomEvent(X_FACE_DETECTOR_IMAGE_LOADED, {
+    bubbles: true,
+    composed: true,
+    detail: val
+  })
+
+export const XFaceDetectorVideoLoading = val =>
+  new CustomEvent(X_FACE_DETECTOR_VIDEO_LOADING, {
+    bubbles: true,
+    composed: true,
+    detail: val
+  })
+
+export const XFaceDetectorVideoLoaded = val =>
+  new CustomEvent(X_FACE_DETECTOR_VIDEO_LOADED, {
     bubbles: true,
     composed: true,
     detail: val

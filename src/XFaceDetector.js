@@ -154,6 +154,8 @@ export class XFaceDetector extends LitElement {
         .then(stream => {
           video.srcObject = stream
           video.play()
+
+          this.dispatchEvent(events.XFaceDetectorVideoLoaded())
         })
         .catch(error => {
           this.dispatchEvent(events.XFaceDetectorVideoLoadingFailure(error))
@@ -228,6 +230,8 @@ export class XFaceDetector extends LitElement {
   }
 
   _handleCanvasStylesForImages(imageWidth) {
+    this._canvasElement.style.display = 'initial'
+
     if (imageWidth > document.documentElement.clientWidth) {
       this._canvasElement.style.width = '100%'
       this._canvasElement.style.height = 'auto'
@@ -308,24 +312,34 @@ export class XFaceDetector extends LitElement {
   }
 
   startPredictions() {
-    this._handleVideoPrediction(
-      this._canvasElement,
-      this._videoElement
-    )
+    return new Promise((res, rej) => {
+      this._handleVideoPrediction(this._canvasElement, this._videoElement)
 
-    this.toggleVideoCanvasDisplay(false)
+      this._canvasElement.style.display = 'block'
+      this._videoElement.style.display = 'none'
+    }).then(() => {
+      this.canPredictVideo
+       ? res()
+       : rej()
+    })
   }
 
   stopPredictions() {
-    this._canvasElement.style.width = 'auto'
+    return new Promise((res, rej) => {
+      this.canPredictVideo = false
+      this._canvasElement.style.display = 'none'
+      this._videoElement.style.display = 'block'
 
-    this.canPredictVideo = false
-    this.toggleVideoCanvasDisplay(true)
+      res()
+    })
   }
 
-  startVideo(ev) {
-    if (ev) {
-      ev.preventDefault()
+  startVideo(event) {
+    this.dispatchEvent(events.XFaceDetectorVideoLoading())
+    this._loadingElement.style.display = 'block'
+
+    if (event) {
+      event.preventDefault()
     }
 
     if (this.isStreaming) {
@@ -335,17 +349,22 @@ export class XFaceDetector extends LitElement {
     }
 
     return this._getUserMediaPromise().then(isStreaming => {
-      this.toggleVideoCanvasDisplay(isStreaming)
+      this._loadingElement.style.display = 'none'
+      this._canvasElement.style.display = isStreaming ? 'none' : 'block'
+      this._videoElement.style.display = isStreaming ? 'block' : 'none'
+
       this.isStreaming = isStreaming
 
       return isStreaming
     })
   }
 
-  stopVideo(ev) {
-    if (ev) {
-      ev.preventDefault()
+  stopVideo(event) {
+    if (event) {
+      event.preventDefault()
     }
+
+    this._videoElement.style.display = 'none'
 
     if (!this.isStreaming) {
       return new Promise((res, rej) => {
@@ -354,8 +373,6 @@ export class XFaceDetector extends LitElement {
     }
 
     return new Promise((res, rej) => {
-      this.stopPredictions()
-
       const video = this._videoElement
       const stream = video.srcObject
 
@@ -366,11 +383,6 @@ export class XFaceDetector extends LitElement {
       this.isStreaming = false
       res(false)
     })
-  }
-
-  toggleVideoCanvasDisplay(flag) {
-    this._canvasElement.style.display = flag ? 'none' : 'block'
-    this._videoElement.style.display = flag ? 'block' : 'none'
   }
 
   firstUpdated() {
