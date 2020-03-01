@@ -1,6 +1,6 @@
 {
   "name": "x-face-detector",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Detecting faces with TensorFlow.js.",
   "main": "dist/XFaceDetector.js",
   "module": "dist/XFaceDetector.js",

@@ -10,6 +10,7 @@ export const X_FACE_DETECTOR_VIDEO_LOADED = 'x-face-detector-video-loaded'
 export const X_FACE_DETECTOR_VIDEO_LOADING_FAILURE = 'x-face-detector-video-loading-failure'
 export const X_FACE_DETECTOR_FACE_DETECTED = 'x-face-detector-face-detected'
 export const X_FACE_DETECTOR_NO_FACE_DETECTED = 'x-face-detector-no-face-detected'
+export const X_FACE_DETECTOR_READY_TO_PREDICT = 'x-face-detector-ready-to-predict'
 
 export const XFaceDetectorImageDragEnter = val =>
   new CustomEvent(X_FACE_DETECTOR_IMAGE_DRAG_ENTER, {
@@ -90,6 +91,13 @@ export const XFaceDetectorFaceDetected = val =>
 
 export const XFaceDetectorNoFaceDetected = val =>
   new CustomEvent(X_FACE_DETECTOR_NO_FACE_DETECTED, {
+    bubbles: true,
+    composed: true,
+    detail: val
+  })
+
+export const XFaceDetectorReadyToPredict = val =>
+  new CustomEvent(X_FACE_DETECTOR_READY_TO_PREDICT, {
     bubbles: true,
     composed: true,
     detail: val

@@ -404,6 +404,8 @@ export class XFaceDetector extends LitElement {
         this.model = blazeface
 
         this.isReadyToPredict = true
+        this.dispatchEvent(events.XFaceDetectorReadyToPredict(true))
+
         this._handleImageUrlPrediction(this._canvasElement, this.imgUrl)
       })
     })

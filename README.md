@@ -7,7 +7,7 @@ Detecting faces with TensorFlow.js.
 ## Installation
 
 ```bash
-npm i git+https://github.com/kherrick/x-face-detector.git#semver:^1.4.1
+npm i git+https://github.com/kherrick/x-face-detector.git#semver:^1.4.2
 ```
 
 ## Usage
